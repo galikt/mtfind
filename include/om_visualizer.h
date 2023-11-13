@@ -1,15 +1,21 @@
 #ifndef OM_VISUALIZER_H
 #define OM_VISUALIZER_H
 
-class OM_Visualizer
+#include "om_object.h"
+#include "om_wait.h"
+
+class OM_Visualizer : public OM_Object
 {
 public:
   OM_Visualizer();
   void Run();
-  void PushChunk();
 
 protected:
-  //  std::shared_ptr<OM_Worker> Source;
+  OM_Wait Wait;
+  std::list<std::unique_ptr<OM_VisualizerChunk>> ChunkList;
+
+protected:
+  virtual void Wake() override;
 };
 
 #endif // OM_VISUALIZER_H
