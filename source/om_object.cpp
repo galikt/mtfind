@@ -15,6 +15,16 @@ OM_Object::OM_Object(const uint32_t id)
   }
 }
 
+OM_Object::~OM_Object()
+{
+  OM_MessageManager::GetInstance()->UnRegisterObject(shared_from_this());
+}
+
+void OM_Object::Init()
+{
+  OM_MessageManager::GetInstance()->RegisterObject(shared_from_this());
+}
+
 void OM_Object::PushMessage(std::unique_ptr<OM_Msg>&& msg)
 {
   std::unique_lock<std::mutex> lock(Message.Lock);

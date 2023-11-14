@@ -12,14 +12,17 @@
 class OM_Source : public OM_Object
 {
 public:
-  OM_Source(const std::string& file_name, const uint32_t max_chunk);
+  OM_Source(const std::string& file_name, const uint32_t max_chunk, const uint32_t chunk_size);
+  void Run();
 
 protected:
   std::list<std::unique_ptr<OM_Chunk>> Cache;
   std::string FileName;
   uint32_t MaxChunk;
+  uint32_t ChunkSize;
   bool SourceValid{true};
   OM_Wait Wait;
+  bool Proceed{true};
 
 protected:
   void Thread();

@@ -3,23 +3,34 @@
 #include <memory>
 #include "om_message_manager.h"
 
-OM_Worker::OM_Worker(const uint32_t cores, const std::string& template_str) : OM_Object(OM_ReservedId::Worker)
+OM_Worker::OM_Worker(const uint32_t cores, const std::string& template_str) : OM_Object(OM_ReservedId::Worker), Cores(cores), Template(template_str)
+{
+}
+
+void OM_Worker::Run()
 {
   std::thread thread_worker(&OM_Worker::Thread, this);
   thread_worker.detach();
 
-  for (int i = 0; i < cores; ++i)
+  for (int i = 0; i < Cores; ++i)
   {
-    auto thread = std::make_shared<OM_Thread>(template_str);
-    OM_MessageManager::GetInstance()->RegisterObject(thread);
+    auto thread = std::make_shared<OM_Thread>(Template);
+    thread->Init();
+    thread->Run();
     ThreadList.push_back(std::move(thread));
   }
 }
 
 void OM_Worker::Thread()
 {
-  while (Run)
+  while (Proceed)
   {
+    // сон если нет сообщений
+    if (MessageCount.load() == 0)
+    {
+      Wait.Wait();
+    }
+
     // обработка сообщений
     std::list<std::unique_ptr<OM_Msg>> message_list;
     {
@@ -28,16 +39,11 @@ void OM_Worker::Thread()
       MessageCount.store(0);
     }
 
-    for (auto iter_msg = message_list.begin(); iter_msg != message_list.end(); ++iter_msg)
+    for (auto&& iter_msg = message_list.begin(); iter_msg != message_list.end(); ++iter_msg)
     {
       Process(std::move(*iter_msg));
     }
     message_list.clear();
-
-    //    if (MessageCount.load() == 0)
-    //    {
-    Wait.Wait();
-    //    }
   }
 
   // завершить работу Source
@@ -55,18 +61,23 @@ void OM_Worker::Process(std::unique_ptr<OM_Msg>&& msg)
   {
     case OM_MsgType::Done:
     {
-      for (auto iter = ThreadList.begin(); iter != ThreadList.end(); ++iter)
+      auto iter = ThreadList.begin();
+      while (iter != ThreadList.end())
       {
         if ((*iter)->GetId() == msg->SenderId)
         {
           iter = ThreadList.erase(iter);
           break;
         }
+        else
+        {
+          ++iter;
+        }
       }
 
       if (ThreadList.empty())
       {
-        Run = false;
+        Proceed = false;
       }
       break;
     }

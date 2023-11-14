@@ -19,6 +19,7 @@ set(HEADER_FILES
 "${INCLUDE}/om_object.h"
 "${INCLUDE}/om_chunk.h"
 "${INCLUDE}/om_visualizer_chunk.h"
+"${INCLUDE}/om_settings.h"
 )
 
 set(SOURCE_FILES
@@ -32,6 +33,7 @@ set(SOURCE_FILES
 "${SOURCE}/om_object.cpp"
 "${SOURCE}/om_chunk.cpp"
 "${SOURCE}/om_visualizer_chunk.cpp"
+"${SOURCE}/om_settings.cpp"
 )
 
 project(${PROJECT_NAME} LANGUAGES CXX)

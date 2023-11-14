@@ -10,11 +10,14 @@ class OM_Worker : public OM_Object
 {
 public:
   OM_Worker(const uint32_t cores, const std::string& template_str);
+  void Run();
 
 protected:
   std::list<std::shared_ptr<OM_Thread>> ThreadList;
   OM_Wait Wait;
-  bool Run{true};
+  bool Proceed{true};
+  uint32_t Cores;
+  std::string Template;
 
 protected:
   void Thread();

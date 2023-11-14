@@ -9,9 +9,15 @@ OM_Visualizer::OM_Visualizer() : OM_Object(OM_ReservedId::Visualizer)
 
 void OM_Visualizer::Run()
 {
-  bool run{true};
-  while (run)
+  while (Proceed)
   {
+    // сон если нет сообщений
+    if (MessageCount.load() == 0)
+    {
+      Wait.Wait();
+    }
+
+    // обработка сообщений
     std::list<std::unique_ptr<OM_Msg>> message_list;
     {
       std::unique_lock<std::mutex> lock(Message.Lock);
@@ -19,7 +25,7 @@ void OM_Visualizer::Run()
       MessageCount.store(0);
     }
 
-    for (auto iter_msg = message_list.begin(); iter_msg != message_list.end(); ++iter_msg)
+    for (auto&& iter_msg = message_list.begin(); iter_msg != message_list.end(); ++iter_msg)
     {
       switch ((*iter_msg)->Type)
       {
@@ -31,30 +37,27 @@ void OM_Visualizer::Run()
         }
         case OM_MsgType::Done:
         {
-          run = false;
+          Proceed = false;
           break;
         }
       }
     }
-
-    //    if (MessageCount.load() == 0)
-    //    {
-    Wait.Wait();
-    //    }
+    message_list.clear();
   }
 
   // сортировка по id
   auto comparator = [](const std::unique_ptr<OM_VisualizerChunk>& v1, const std::unique_ptr<OM_VisualizerChunk>& v2) -> bool { return v1->Index < v2->Index; };
   ChunkList.sort(comparator);
 
+  // вывод количество найденных выражений
   uint32_t total{0};
   for (auto& chunk : ChunkList)
   {
     total += chunk->List.size();
   }
-
   std::cout << total << std::endl;
 
+  // вывод найденых выражений
   for (auto& chunk : ChunkList)
   {
     for (auto& line : chunk->List)

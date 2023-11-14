@@ -5,6 +5,10 @@
 
 OM_Thread::OM_Thread(const std::string& template_str) : Template(template_str)
 {
+}
+
+void OM_Thread::Run()
+{
   std::thread thread(&OM_Thread::Thread, this);
   thread.detach();
 }
@@ -16,18 +20,17 @@ void OM_Thread::Wake()
 
 void OM_Thread::Thread()
 {
-  bool run{true};
-  while (run)
+  while (Proceed)
   {
     // запрос даных у источника
     auto msg = std::make_unique<OM_MsgRequestChunk>();
     OM_MessageManager::GetInstance()->SendMsg(this, OM_ReservedId::Source, std::move(msg));
 
     // поток зысыпает до появления сообщений
-    //    if (MessageCount.load() == 0)
-    //    {
-    Wait.Wait();
-    //    }
+    if (MessageCount.load() == 0)
+    {
+      Wait.Wait();
+    }
 
     // обработка сообщений
     std::list<std::unique_ptr<OM_Msg>> message_list;
@@ -48,7 +51,7 @@ void OM_Thread::Thread()
         }
         case OM_MsgType::Done:
         {
-          run = false;
+          Proceed = false;
           break;
         }
       }
@@ -72,7 +75,7 @@ void OM_Thread::Process(std::unique_ptr<OM_Msg>&& msg)
   std::regex regex(Template);
   uint32_t line_counter{0};
   OM_VisualizerChunk::OM_VisualizerChunkLine line;
-  for (auto str : msg_responce->Chunk->List)
+  for (auto& str : msg_responce->Chunk->List)
   {
     std::smatch match;
     regex_search(str, match, regex);
@@ -81,7 +84,8 @@ void OM_Thread::Process(std::unique_ptr<OM_Msg>&& msg)
     if (find.empty() == false)
     {
       line.Line = msg_responce->Chunk->FirstLine + line_counter;
-      line.Position = match.position();
+      // отсчёт от 1. поэтому + 1
+      line.Position = match.position() + 1;
       line.string = find;
       chunk->List.push_back(std::move(line));
     }

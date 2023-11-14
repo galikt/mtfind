@@ -11,8 +11,10 @@ OM_MessageManager* OM_MessageManager::GetInstance()
 
 void OM_MessageManager::SendMsg(const OM_Object* sender, uint32_t receiver, std::unique_ptr<OM_Msg>&& msg)
 {
-  auto iter_obj = ObjectMap.find(receiver);
-  if (iter_obj != ObjectMap.end())
+  std::unique_lock<std::mutex>(Object.Lock);
+
+  auto iter_obj = Object.Map.find(receiver);
+  if (iter_obj != Object.Map.end())
   {
     msg->SenderId = sender == nullptr ? OM_MsgType::Blank : sender->Id;
     iter_obj->second->PushMessage(std::move(msg));
@@ -21,5 +23,16 @@ void OM_MessageManager::SendMsg(const OM_Object* sender, uint32_t receiver, std:
 
 void OM_MessageManager::RegisterObject(std::shared_ptr<OM_Object> obj)
 {
-  ObjectMap.insert(std::pair(obj->Id, obj));
+  std::unique_lock<std::mutex>(Object.Lock);
+  Object.Map.insert(std::pair(obj->Id, obj));
+}
+
+void OM_MessageManager::UnRegisterObject(std::shared_ptr<OM_Object> obj)
+{
+  std::unique_lock<std::mutex>(Object.Lock);
+  auto find = Object.Map.find(obj->Id);
+  if (find != Object.Map.end())
+  {
+    Object.Map.erase(find);
+  }
 }

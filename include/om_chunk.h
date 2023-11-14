@@ -12,25 +12,24 @@ class OM_Chunk
 public:
   OM_Chunk(const uint32_t index, const uint32_t first_line);
   inline void Push(std::string&& str);
-  inline bool IsFull();
+  inline uint32_t GetSize() const;
 
 private:
-  static const uint32_t MaxSize;
   uint32_t Index{0};
   uint32_t FirstLine{0};
-  uint32_t Filling{0};
+  uint32_t Size{0};
   std::list<std::string> List;
 };
 
 void OM_Chunk::Push(std::string&& str)
 {
-  Filling += str.size();
+  Size += str.size();
   List.push_back(std::move(str));
 }
 
-bool OM_Chunk::IsFull()
+uint32_t OM_Chunk::GetSize() const
 {
-  return Filling > MaxSize ? true : false;
+  return Size;
 }
 
 #endif // OM_CHUNK_H

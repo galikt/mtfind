@@ -18,15 +18,16 @@ enum OM_ReservedId
   Max
 };
 
-class OM_Object
+class OM_Object : public std::enable_shared_from_this<OM_Object>
 {
   friend class OM_MessageManager;
 
 public:
   OM_Object(const uint32_t id = OM_ReservedId::None);
-  virtual ~OM_Object() = default;
+  virtual ~OM_Object();
   void PushMessage(std::unique_ptr<OM_Msg>&& msg);
   inline uint32_t GetId();
+  virtual void Init();
 
 protected:
   struct
@@ -36,8 +37,8 @@ protected:
   } Message;
 
   static uint32_t CounterId;
-  uint32_t Id;
-  std::atomic<int> MessageCount;
+  uint32_t Id{0};
+  std::atomic<int> MessageCount{0};
 
 protected:
   virtual void Wake() = 0;

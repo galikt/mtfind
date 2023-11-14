@@ -3,7 +3,12 @@
 #include <thread>
 #include "om_message_manager.h"
 
-OM_Source::OM_Source(const std::string& file_name, const uint32_t max_chunk) : FileName(file_name), MaxChunk(max_chunk), OM_Object(OM_ReservedId::Source)
+OM_Source::OM_Source(const std::string& file_name, const uint32_t max_chunk, const uint32_t chunk_size)
+  : OM_Object(OM_ReservedId::Source), FileName(file_name), MaxChunk(max_chunk), ChunkSize(chunk_size)
+{
+}
+
+void OM_Source::Run()
 {
   std::thread thread(&OM_Source::Thread, this);
   thread.detach();
@@ -14,7 +19,7 @@ void OM_Source::ReadChunk(std::ifstream& file, uint32_t& line_counter, uint32_t&
   auto chunk = std::make_unique<OM_Chunk>(index_counter, line_counter);
   ++index_counter;
   std::string buf;
-  while (chunk->IsFull() == false)
+  while (chunk->GetSize() < ChunkSize)
   {
     if (std::getline(file, buf))
     {
@@ -41,25 +46,25 @@ void OM_Source::Thread()
 
   uint32_t line_counter{1};
   uint32_t index_counter{0};
-  bool run{true};
-  while (run)
+  while (Proceed)
   {
-    // пополнение Cache
-    if (SourceValid)
+    // поток засыпает если нет сообщений
+    if (MessageCount.load() == 0)
     {
-      ReadChunk(file, line_counter, index_counter);
+      Wait.Wait();
     }
 
     // обработка сообщений
     {
       std::unique_lock<std::mutex> lock_message(Message.Lock);
-      for (auto iter_msg = Message.List.begin(); iter_msg != Message.List.end(); ++iter_msg)
+      auto iter_msg = Message.List.begin();
+      while (iter_msg != Message.List.end())
       {
         switch ((*iter_msg)->Type)
         {
           case OM_MsgType::RequestChunk:
           {
-            auto iter_chunk = Cache.begin();
+            auto&& iter_chunk = Cache.begin();
             if (iter_chunk != Cache.end())
             {
               auto msg = std::make_unique<OM_MsgResponceChunk>();
@@ -71,17 +76,22 @@ void OM_Source::Thread()
             }
             else if (SourceValid == false)
             {
-              // уведомление Thread о завершонной работе Source
+              // уведомление Thread о отсутствии данных Source
               auto msg = std::make_unique<OM_MsgDone>();
               OM_MessageManager::GetInstance()->SendMsg(this, (*iter_msg)->SenderId, std::move(msg));
 
               iter_msg = Message.List.erase(iter_msg);
             }
+            else
+            {
+              ++iter_msg;
+            }
             break;
           }
           case OM_MsgType::Stop:
           {
-            run = false;
+            Proceed = false;
+            iter_msg = Message.List.erase(iter_msg);
             break;
           }
         }
@@ -89,10 +99,10 @@ void OM_Source::Thread()
       MessageCount.store(Message.List.size());
     }
 
-    // поток засыпает если Cache полон или файл прочитан
-    if ((Cache.size() > MaxChunk) || (SourceValid == false))
+    // пополнение Cache
+    while (SourceValid && (Cache.size() < MaxChunk))
     {
-      Wait.Wait();
+      ReadChunk(file, line_counter, index_counter);
     }
   }
 }

@@ -16,6 +16,7 @@ protected:
 
 protected:
   virtual void Wake() override;
+  bool Proceed{true};
 };
 
 #endif // OM_VISUALIZER_H
