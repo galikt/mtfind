@@ -19,10 +19,12 @@ void OM_Source::ReadChunk(std::ifstream& file, uint32_t& line_counter, uint32_t&
   auto chunk = std::make_unique<OM_Chunk>(index_counter, line_counter);
   ++index_counter;
   std::string buf;
-  while (chunk->GetSize() < ChunkSize)
+  uint32_t size{0};
+  while (size < ChunkSize)
   {
     if (std::getline(file, buf))
     {
+      size += buf.size();
       chunk->Push(std::move(buf));
       ++line_counter;
     }
